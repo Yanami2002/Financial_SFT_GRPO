@@ -1,0 +1,321 @@
+{
+  "schema_version": 1,
+  "experiment": "qwen35-2b-finqa-sft-baseline",
+  "completed_at": "2026-11-17T20:33:05.695810+09:00",
+  "scope": "Single-seed dev-selected ratio/percentage subtask; not official full-FinQA or held-out test performance.",
+  "configuration": {
+    "model": {
+      "name": "Qwen/Qwen3.5-2B",
+      "revision": "15852e8c16360a2fea060d615a32b45270f8a8fc",
+      "loader": "qwen3_5_text",
+      "cache_dir": ".cache/huggingface",
+      "dtype": "bfloat16",
+      "device": "auto",
+      "attn_implementation": "sdpa",
+      "chat_template_kwargs": {
+        "enable_thinking": false
+      }
+    },
+    "seed": 42,
+    "data": "data/processed/train_sft.jsonl",
+    "limit": null,
+    "init_adapter": null,
+    "max_length": 2048,
+    "lora": {
+      "r": 16,
+      "lora_alpha": 32,
+      "lora_dropout": 0.05,
+      "target_modules": "all-linear"
+    },
+    "training": {
+      "output_dir": "outputs/qwen3.5-2b/sft",
+      "per_device_train_batch_size": 1,
+      "gradient_accumulation_steps": 8,
+      "learning_rate": 0.0001,
+      "max_steps": -1,
+      "warmup_steps": 0.05,
+      "lr_scheduler_type": "cosine",
+      "bf16": true,
+      "gradient_checkpointing": true,
+      "gradient_checkpointing_kwargs": {
+        "use_reentrant": false
+      },
+      "logging_steps": 1,
+      "save_steps": 100,
+      "save_total_limit": 3,
+      "optim": "adamw_torch",
+      "ddp_find_unused_parameters": false,
+      "ddp_timeout": 1800,
+      "num_train_epochs": 3.0,
+      "eval_strategy": "steps",
+      "eval_steps": 100,
+      "save_strategy": "steps",
+      "per_device_eval_batch_size": 1,
+      "load_best_model_at_end": true,
+      "metric_for_best_model": "numerical_accuracy",
+      "greater_is_better": true
+    },
+    "validation": {
+      "data": "data/processed/dev.jsonl",
+      "limit": null,
+      "generation": {
+        "max_input_tokens": 2048,
+        "max_new_tokens": 128,
+        "do_sample": false
+      },
+      "tolerance": {
+        "atol": 1e-06,
+        "rtol": 0.001
+      }
+    }
+  },
+  "distributed": {
+    "world_size": 2,
+    "effective_batch_size": 16
+  },
+  "data": {
+    "source": "https://github.com/czyssrs/FinQA",
+    "revision": "0f16e2867befa6840783e58be38c9efb9229d742",
+    "official_split_sizes": {
+      "train": 6251,
+      "dev": 883,
+      "test": 1147
+    },
+    "verified_reference_counts": {
+      "train": 3428,
+      "dev": 481,
+      "test": 638
+    },
+    "sft_train_retained": 3363,
+    "sft_train_dropped_for_length": 65,
+    "processed_sha256": {
+      "data/processed/train_sft.jsonl": "98ffa6329cb62ae885b3fb3b8e2100e7d729f6656e83042de3f9eda463a3fd94",
+      "data/processed/dev.jsonl": "e4818dfd9824a11a5dadd5a1317465781580771d6e65f106016afc51e05f4869",
+      "data/processed/manifest.json": "16e1a53617fd7eef53ed819a6afd048861060d0ecf7bd8336163aca8dbfbbfd7"
+    },
+    "original_files": {
+      "train": {
+        "url": "https://raw.githubusercontent.com/czyssrs/FinQA/0f16e2867befa6840783e58be38c9efb9229d742/dataset/train.json",
+        "sha256": "49f237eb9779b569473b26b08048867d04635a7cc39ad6a7a5664c55bb428db6"
+      },
+      "dev": {
+        "url": "https://raw.githubusercontent.com/czyssrs/FinQA/0f16e2867befa6840783e58be38c9efb9229d742/dataset/dev.json",
+        "sha256": "a847fb7e0d61a3125a1e2909852df6b89f1ee64d2c5ff1bf689e332214deee51"
+      },
+      "test": {
+        "url": "https://raw.githubusercontent.com/czyssrs/FinQA/0f16e2867befa6840783e58be38c9efb9229d742/dataset/test.json",
+        "sha256": "831dbfb2e785dbc227f895ce3f24046433467aec67b09db2bd6ac7692a8a30dc"
+      }
+    }
+  },
+  "results": {
+    "base": {
+      "n": 883,
+      "n_scorable": 481,
+      "n_unscorable": 402,
+      "correct": 90,
+      "numerical_accuracy": 0.18711018711018712,
+      "parseable_rate": 0.8607021517553793
+    },
+    "sft_selected": {
+      "n": 883,
+      "n_scorable": 481,
+      "n_unscorable": 402,
+      "correct": 231,
+      "numerical_accuracy": 0.4802494802494803,
+      "parseable_rate": 0.970554926387316
+    },
+    "sft_last": {
+      "n": 883,
+      "n_scorable": 481,
+      "n_unscorable": 402,
+      "correct": 226,
+      "numerical_accuracy": 0.4698544698544699,
+      "parseable_rate": 0.970554926387316
+    },
+    "selected_step": 500,
+    "last_step": 633,
+    "improvement_percentage_points": 29.313929313929314
+  },
+  "dev_history": [
+    {
+      "step": 100,
+      "eval_numerical_accuracy": 0.37214137214137216,
+      "eval_parseable_rate": 0.9728199320498301,
+      "eval_n": 883,
+      "eval_n_scorable": 481,
+      "eval_n_unscorable": 402,
+      "eval_correct": 179,
+      "eval_runtime": 800.1042831698433
+    },
+    {
+      "step": 200,
+      "eval_numerical_accuracy": 0.40540540540540543,
+      "eval_parseable_rate": 0.9728199320498301,
+      "eval_n": 883,
+      "eval_n_scorable": 481,
+      "eval_n_unscorable": 402,
+      "eval_correct": 195,
+      "eval_runtime": 723.0963878589682
+    },
+    {
+      "step": 300,
+      "eval_numerical_accuracy": 0.3866943866943867,
+      "eval_parseable_rate": 0.9716874292185731,
+      "eval_n": 883,
+      "eval_n_scorable": 481,
+      "eval_n_unscorable": 402,
+      "eval_correct": 186,
+      "eval_runtime": 708.7193478620611
+    },
+    {
+      "step": 400,
+      "eval_numerical_accuracy": 0.44282744282744285,
+      "eval_parseable_rate": 0.970554926387316,
+      "eval_n": 883,
+      "eval_n_scorable": 481,
+      "eval_n_unscorable": 402,
+      "eval_correct": 213,
+      "eval_runtime": 715.6845275289379
+    },
+    {
+      "step": 500,
+      "eval_numerical_accuracy": 0.4802494802494803,
+      "eval_parseable_rate": 0.970554926387316,
+      "eval_n": 883,
+      "eval_n_scorable": 481,
+      "eval_n_unscorable": 402,
+      "eval_correct": 231,
+      "eval_runtime": 723.9096562126651
+    },
+    {
+      "step": 600,
+      "eval_numerical_accuracy": 0.4656964656964657,
+      "eval_parseable_rate": 0.9716874292185731,
+      "eval_n": 883,
+      "eval_n_scorable": 481,
+      "eval_n_unscorable": 402,
+      "eval_correct": 224,
+      "eval_runtime": 720.1825111410581
+    },
+    {
+      "step": 633,
+      "eval_numerical_accuracy": 0.4698544698544699,
+      "eval_parseable_rate": 0.970554926387316,
+      "eval_n": 883,
+      "eval_n_scorable": 481,
+      "eval_n_unscorable": 402,
+      "eval_correct": 226,
+      "eval_runtime": 723.3795136888511
+    }
+  ],
+  "runtime": {
+    "python": "3.11.18",
+    "packages": {
+      "torch": "2.7.1+cu126",
+      "transformers": "5.22.1",
+      "trl": "1.17.1",
+      "peft": "0.21.0",
+      "accelerate": "1.15.0",
+      "datasets": "4.7.0",
+      "gradio": "5.49.1"
+    }
+  },
+  "hardware": {
+    "gpu_model": "NVIDIA RTX A6000",
+    "gpu_memory_gib": 48,
+    "gpu_count": 2
+  },
+  "stage_wall_time": [
+    {
+      "stage": "base",
+      "started_at": "2026-11-17T15:53:19.549173+09:00",
+      "finished_at": "2026-11-17T16:08:37.407996+09:00",
+      "exit_code": 0
+    },
+    {
+      "stage": "sft",
+      "started_at": "2026-11-17T16:09:07.831807+09:00",
+      "finished_at": "2026-11-17T20:33:05.099833+09:00",
+      "exit_code": 0
+    },
+    {
+      "stage": "compare",
+      "started_at": "2026-11-17T20:33:05.110554+09:00",
+      "finished_at": "2026-11-17T20:33:05.693308+09:00",
+      "exit_code": 0
+    }
+  ],
+  "training_metrics": {
+    "train_runtime": 15773.023,
+    "train_samples_per_second": 0.64,
+    "train_steps_per_second": 0.04,
+    "total_flos": 1.0048519157894349e+17,
+    "train_loss": 0.18171622305755367,
+    "epoch": 3.0,
+    "resources_by_rank": [
+      {
+        "rank": 0,
+        "seconds": 15815.793831907678,
+        "max_memory_allocated_gib": 9.716444969177246,
+        "max_memory_reserved_gib": 33.185546875
+      },
+      {
+        "rank": 1,
+        "seconds": 15810.857498075813,
+        "max_memory_allocated_gib": 9.710343837738037,
+        "max_memory_reserved_gib": 45.71875
+      }
+    ]
+  },
+  "original_source_sha256": {
+    "financeqa/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "financeqa/common.py": "84d814d7883f17f14cbfc478b3724436460a5263927506ce0b9651d57ccdbcb9",
+    "financeqa/distributed.py": "6253a271d746ec6298f323c57a4e09443535512fd21436b9e60e48e3ebedf148",
+    "financeqa/modeling.py": "56efa51d84b25d4615e61a9cf1655084a693f39b5284687dddd59f6ff8ea73b1",
+    "data/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "data/prepare_data.py": "5cac023f63826737e66ffe16003e770dd9c32796f07f8428d95365ff97538b6d",
+    "rewards/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "rewards/format_reward.py": "90ba190ee233b771ffd57efb6363a3343ddad5a4dd70877c808b54ae2b3b800e",
+    "rewards/numerical.py": "fa6d478c3e61191c2fef65db40c42dbd80f19b4348099456486c86b5c02569c8",
+    "train/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "train/grpo.py": "e1ae6976bce709eac30099baf4c47aab3f2aa51db7a0dffd661eb9141c353d82",
+    "train/sft.py": "673b537976565e3fba0da467c5ee54ceded98f3f020745da6717818210dd37cc",
+    "train/validation.py": "7df652d3ea4bc8bd7b91219d6b60118f5ca299050d472bc3204243fcd562053d",
+    "eval/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "eval/compare.py": "d682aee1663f7ba1a431c485981a9e1f1b61088c00faa251ddc2ed2f7bbb68f1",
+    "eval/evaluate.py": "81a0cd37299c2179147aa61d6bae512cfa56af3a43d32dca4423168cd8634362",
+    "eval/metrics.py": "36a853a56b8e4fbdf4a3df6c4bf89398ba952c7be1fe096f5b94426644a58ac6",
+    "eval/select_checkpoint.py": "c5418cc02e126b16d82ddca7e4611dad0022dc44f39e64033e0839cffa193015",
+    "inference/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "inference/predict.py": "91f99e78d373b069cef02f09d7b24a9b65ba6c5ac4c1f27eff7509bf3ae94be6",
+    "demo/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "demo/app.py": "2a805b13f933a812d8b47293012554d1ab60d0e2a5abc6d04a1dd9390db878af",
+    "scripts/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "scripts/check_distributed.py": "e0a2173513970931840b6de2e7d9ab9a3d1f709345e7901a652767d215ddbfcf",
+    "scripts/check_setup.py": "76fbeefe735ca6acd396df9f6b575c49902dbc13428ee1f061bda62b8d2476d9",
+    "scripts/control_cohort.py": "70557068019d4851589f6714268498fb77bc5d121c3f1d450de8a0ca3d4a73ba",
+    "scripts/make_configs.py": "3f6dc809e10f8cec5aec9a6479fa91ed4c8fc2fa57540633f1107b2fcafcaff0"
+  },
+  "verification": {
+    "status": "verified",
+    "global_step": 633,
+    "epochs": 3,
+    "all_stages_exit_zero": true,
+    "same_eval_protocol": true,
+    "weights_finite": true,
+    "exported_weights_match_checkpoint_500": true,
+    "base_correct": 90,
+    "sft_correct": 231,
+    "n_scorable": 481,
+    "dev_checks": 7
+  },
+  "pending": [
+    "full_grpo",
+    "continued_sft_control",
+    "multiple_seeds",
+    "final_test_evaluation"
+  ],
+  "artifact_note": "Raw predictions, logs, model weights, and process-specific records are excluded; this curated summary is versioned.",
+  "raw_artifacts_in_git": false
+}

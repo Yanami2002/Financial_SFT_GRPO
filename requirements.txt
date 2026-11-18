@@ -1,0 +1,12 @@
+# Python 3.11; install torch CUDA wheel separately, see README.
+torch==2.7.1
+transformers==5.22.1
+trl==1.17.1
+peft==0.21.0
+accelerate==1.15.0
+datasets==4.7.0
+huggingface-hub==1.33.0
+numpy==2.2.6
+PyYAML==6.0.3
+gradio==5.49.1
+pytest==8.4.2

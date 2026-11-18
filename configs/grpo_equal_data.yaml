@@ -1,0 +1,65 @@
+model:
+  name: Qwen/Qwen3.5-2B
+  revision: 15852e8c16360a2fea060d615a32b45270f8a8fc
+  loader: qwen3_5_text
+  cache_dir: .cache/huggingface
+  dtype: bfloat16
+  device: auto
+  attn_implementation: sdpa
+  chat_template_kwargs:
+    enable_thinking: false
+seed: 42
+data: data/processed/qwen35_control_grpo.jsonl
+limit: null
+sft_adapter: outputs/qwen3.5-2b/sft
+max_prompt_tokens: 2048
+format_weight: 0.05
+tolerance:
+  atol: 1.0e-06
+  rtol: 0.001
+training:
+  output_dir: outputs/qwen3.5-2b/grpo-equal-data
+  per_device_train_batch_size: 1
+  gradient_accumulation_steps: 8
+  num_generations: 8
+  max_completion_length: 128
+  learning_rate: 5.0e-06
+  max_steps: -1
+  warmup_steps: 0.05
+  beta: 0.04
+  disable_dropout: true
+  temperature: 0.8
+  top_p: 0.95
+  bf16: true
+  gradient_checkpointing: true
+  gradient_checkpointing_kwargs:
+    use_reentrant: false
+  logging_steps: 1
+  save_steps: 100
+  save_total_limit: 2
+  use_vllm: false
+  optim: adamw_torch
+  loss_type: grpo
+  scale_rewards: group
+  mask_truncated_completions: true
+  ddp_find_unused_parameters: false
+  ddp_timeout: 1800
+  num_train_epochs: 1.0
+  eval_strategy: steps
+  eval_steps: 100
+  save_strategy: steps
+  per_device_eval_batch_size: 1
+  load_best_model_at_end: true
+  metric_for_best_model: numerical_accuracy
+  greater_is_better: true
+  num_generations_eval: 1
+validation:
+  data: data/processed/dev.jsonl
+  limit: null
+  generation:
+    max_input_tokens: 2048
+    max_new_tokens: 128
+    do_sample: false
+  tolerance:
+    atol: 1.0e-06
+    rtol: 0.001

@@ -1,0 +1,29 @@
+model:
+  name: Qwen/Qwen3.5-2B
+  revision: 15852e8c16360a2fea060d615a32b45270f8a8fc
+  loader: qwen3_5_text
+  cache_dir: .cache/huggingface
+  dtype: bfloat16
+  device: auto
+  attn_implementation: sdpa
+  chat_template_kwargs:
+    enable_thinking: false
+seed: 42
+data: data/processed/dev.jsonl
+split: dev
+limit: 4
+output_dir: results/qwen3.5-2b/smoke-dev
+variants:
+  base:
+    adapter: null
+  sft:
+    adapter: outputs/qwen3.5-2b/smoke-sft
+  grpo:
+    adapter: outputs/qwen3.5-2b/smoke-grpo
+tolerance:
+  atol: 1.0e-06
+  rtol: 0.001
+generation:
+  max_input_tokens: 2048
+  max_new_tokens: 48
+  do_sample: false
