@@ -6,10 +6,10 @@ Run all commands from the repository root. For project status and the current ba
 
 ```text
 financial-sft-grpo/
-├── configs/       # SFT, GRPO, evaluation, smoke tests, and controls
+├── configs/       # SFT, GRPO, DAPO, evaluation, smoke tests, and controls
 ├── data/          # Pinned data download and deterministic conversion
 ├── financeqa/     # Model loading, templates, provenance, and DDP helpers
-├── train/         # Assistant-only SFT, GRPO, and dev checkpoint selection
+├── train/         # Assistant-only SFT, GRPO, DAPO, and dev checkpoint selection
 ├── rewards/       # Numerical correctness and format rewards
 ├── eval/          # Scoring, protocol checks, and checkpoint comparison
 ├── inference/     # JSONL prediction CLI
@@ -43,7 +43,7 @@ The implementation uses native PyTorch/Transformers generation. Optional `causal
 ```bash
 python -m data.prepare_data --download
 CUDA_VISIBLE_DEVICES='' python -m scripts.check_setup --world-size 2 --tokenizer
-CUDA_VISIBLE_DEVICES='' python -m pytest -q
+CUDA_VISIBLE_DEVICES='' python -m pytest -q tests
 ```
 
 The setup check reads model configuration and tokenizer metadata, not pretrained weights. Tests use explicitly identified tiny random models and controlled fixtures; they do not fine-tune the official Qwen checkpoint. Tests requiring optional ML packages are skipped when those packages are absent. A data/scoring-only environment requires `PyYAML==6.0.3` and `pytest==8.4.2`.
@@ -78,14 +78,14 @@ Training skips whole overlength records and logs their IDs. Evaluation retains t
 Choose allocated GPUs and use a fresh checkout or separate output directories for additional runs. The following reproduces the reported two-GPU configuration:
 
 ```bash
-# Example device numbers: replace with your allocated GPUs.
-export CUDA_VISIBLE_DEVICES=4,5
+# Replace the example device IDs with your allocated GPUs.
+export CUDA_VISIBLE_DEVICES=0,1
 export TOKENIZERS_PARALLELISM=false
 export OMP_NUM_THREADS=4
 export MKL_NUM_THREADS=4
 
 # Base uses one GPU and the complete dev split.
-CUDA_VISIBLE_DEVICES=4 python -m eval.evaluate --config configs/eval_base_dev.yaml
+CUDA_VISIBLE_DEVICES=0 python -m eval.evaluate --config configs/eval_base_dev.yaml
 
 # This command starts real two-GPU LoRA training.
 NPROC_PER_NODE=2 bash scripts/train.sh sft
@@ -107,25 +107,35 @@ The completed run selected step 500 rather than the final step, 633. The adapter
 
 ## GRPO and continued-SFT control
 
-After SFT, continue training the same adapter with native TRL generation:
+After SFT, build the shared training cohort and run GRPO with native TRL generation. These settings match the completed experiment:
 
 ```bash
-NPROC_PER_NODE=2 bash scripts/train.sh grpo
+python -m scripts.control_cohort
+NPROC_PER_NODE=2 bash scripts/train.sh grpo --config configs/grpo_equal_data.yaml \
+  --set training.output_dir=outputs/qwen3.5-2b/grpo
 ```
 
 GRPO defaults to eight completions per question, one epoch, a 2048-token prompt budget, and a 128-token completion budget. Numerical correctness has weight 1.0 and format has weight 0.05. With `beta=0.04`, TRL copies the SFT adapter to a frozen KL reference; its precision, initial equality, and frozen state are checked. Only the trained default adapter is exported. Inference uses the original base plus that adapter.
 
 Global generation batches must be divisible by `num_generations`. Configurations are checked for one, two, and three workers. Cross-rank diagnostics record complete reward groups and flag identical rewards. This profile does not use vLLM or an additional generation GPU.
 
-For a shared-data control from the same selected SFT model:
+The common cohort contains 3,363 training examples that fit both token budgets. To run the continued-SFT control from the same selected SFT model:
 
 ```bash
-python -m scripts.control_cohort
 NPROC_PER_NODE=2 bash scripts/train.sh sft --config configs/continued_sft.yaml
-NPROC_PER_NODE=2 bash scripts/train.sh grpo --config configs/grpo_equal_data.yaml
 ```
 
-The common cohort contains 3363 train IDs that fit both token budgets. Report sample exposure, generated tokens, and compute separately: equal step counts do not imply equal compute. Full control and GRPO experiments remain pending.
+Report sample exposure, generated tokens, and compute separately. Equal step counts can involve different amounts of compute. Continued-SFT results remain pending.
+
+## DAPO
+
+After SFT and `python -m scripts.control_cohort`, run:
+
+```bash
+NPROC_PER_NODE=2 bash scripts/train.sh dapo
+```
+
+DAPO starts from the same selected SFT adapter and uses dynamic sampling, a loss normalized by accepted tokens, asymmetric clipping, and zero KL. The default output is `outputs/qwen3.5-2b/dapo`. See the [recipe and results](dapo.md) for the exact configuration and a command to compare the selected dev checkpoints.
 
 ## Final evaluation and inference
 
@@ -137,7 +147,7 @@ python -m eval.compare results/qwen3.5-2b/test/{base,sft,grpo}/metrics.json \
   --output results/qwen3.5-2b/comparison.json
 ```
 
-`configs/eval.yaml` targets **test** and is not used for training-time selection. Test model evaluation has not been performed. Comparison rejects mismatched IDs, models, prompts, seeds, tolerances, or generation parameters. Evaluation, inference, and the demo use one process, without `torchrun`, loading variants sequentially.
+`configs/eval.yaml` targets **test**. To include DAPO in the test evaluation or demo, copy the config and add `dapo: {adapter: outputs/qwen3.5-2b/dapo}` under `variants`. The published metrics use dev only. Comparison rejects mismatched IDs, models, prompts, seeds, tolerances, or generation parameters. Evaluation, inference, and the demo use one process and load variants sequentially.
 
 ```bash
 python -m inference.predict --input /path/to/input.jsonl --output results/predict.jsonl
@@ -152,6 +162,6 @@ CLI records contain `context` and `question`, with an optional `id`. The demo de
 
 The two-RTX-A6000 baseline took about 4 hours 24 minutes for SFT, including seven complete dev checks. Peak allocated memory was about 9.72 GiB per worker; reserved peaks were 33.19/45.72 GiB. These observations are configuration-specific, not universal memory requirements.
 
-The full CPU environment passed 80 tests; a minimal environment passed 66 with 14 optional-dependency skips. Real GPU SFT/GRPO and selection smoke runs also passed. Fixtures and legacy model results are distinct from the Qwen3.5 baseline. See [validation details](validation.md).
+The full dependency environment passed 83 tests with CUDA hidden. Real GPU training and checkpoint selection were also checked in smoke runs. See [validation details](validation.md).
 
 Commit source, configurations, tests, provenance documentation, and curated summaries. Raw logs/predictions, downloaded data, checkpoints, environments, credentials, and caches remain outside Git. The MIT [license](../LICENSE) covers project code; upstream data, models, and dependencies retain their own licenses.

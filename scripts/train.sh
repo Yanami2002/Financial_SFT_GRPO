@@ -4,8 +4,8 @@ cd "$(dirname "$0")/.."
 # This entry starts real training only when explicitly invoked.
 stage="${1:-}"
 case "$stage" in
-  sft|grpo) ;;
-  *) echo "Usage: bash scripts/train.sh {sft|grpo} [--config PATH] [--set KEY=VALUE] [--dry-run]" >&2; exit 2 ;;
+  sft|grpo|dapo) ;;
+  *) echo "Usage: bash scripts/train.sh {sft|grpo|dapo} [--config PATH] [--set KEY=VALUE] [--dry-run]" >&2; exit 2 ;;
 esac
 shift
 training_workers="${NPROC_PER_NODE:-3}"

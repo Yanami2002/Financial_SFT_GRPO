@@ -1,10 +1,19 @@
 # Validation and experiment report
 
-Last verified: **2026-11-18**, Asia/Tokyo. This report contains curated results and reproduction details. Raw logs, predictions, checkpoints, process identifiers, and machine-specific GPU identifiers remain in ignored local artifact directories.
+Last verified: **2026-11-20**, Asia/Tokyo. This report contains curated results and reproduction details. Raw logs, predictions, checkpoints, process identifiers, and machine-specific GPU identifiers remain in ignored local artifact directories.
+
+## Reinforcement learning results
+
+| Recipe | Selected step | Correct / 481 | Dev accuracy | Final step | Final dev accuracy |
+|---|---:|---:|---:|---:|---:|
+| [GRPO](grpo-baseline.md) | 400 | 245 | 50.94% | 1,681 | 48.65% |
+| [DAPO](dapo.md) | 200 | 246 | 51.14% | 400 | 50.73% |
+
+Both runs started from SFT step 500 and used the same training cohort and evaluation protocol. Compared with SFT, the selected checkpoints gained 2.91 and 3.12 percentage points, respectively. DAPO gained one additional correct answer over selected GRPO. The recipes have different sampling and compute budgets. This is a seed-42 comparison using checkpoints selected on dev. Continued-SFT controls, multi-seed comparisons, and held-out test evaluation remain pending. See the machine-readable [GRPO record](experiments/grpo-baseline.json) and [DAPO record](experiments/dapo-baseline.json).
 
 ## Completed Base and two-GPU SFT baseline
 
-Base/dev evaluation, SFT training, and protocol-checked comparison all exited successfully. The job finished on **2026-11-17 at 20:33 JST** and released its two assigned GPUs.
+Base/dev evaluation, SFT training, and the protocol-checked comparison completed on **2026-11-17**.
 
 | Model | Correct / scorable dev records | Numerical accuracy | Parseable outputs, all 883 dev records |
 |---|---:|---:|---:|
@@ -12,7 +21,7 @@ Base/dev evaluation, SFT training, and protocol-checked comparison all exited su
 | SFT best, step 500 | 231 / 481 | 48.02% | 97.06% |
 | SFT last, step 633 | 226 / 481 | 46.99% | 97.06% |
 
-Selected SFT improves dev accuracy by **29.31 percentage points**. This is a single-seed, dev-selected ratio/percentage result, not full-FinQA or held-out test performance. Full GRPO, continued-SFT controls, and multiple-seed experiments remain pending.
+Selected SFT improves dev accuracy by **29.31 percentage points** on the ratio and percentage subset.
 
 ### Configuration
 
@@ -38,7 +47,7 @@ The frozen run configuration matches [configs/sft.yaml](../configs/sft.yaml). Th
 
 ### Reproduction
 
-Use a fresh checkout or separate output paths. Device numbers below reproduce the original assignment and must be replaced with allocated GPUs on other machines.
+Use a fresh checkout or separate output paths. Replace the example device IDs with your allocated GPUs.
 
 ```bash
 source .venv/bin/activate
@@ -47,8 +56,8 @@ export TOKENIZERS_PARALLELISM=false
 export OMP_NUM_THREADS=4
 export MKL_NUM_THREADS=4
 
-CUDA_VISIBLE_DEVICES=4 python -m eval.evaluate --config configs/eval_base_dev.yaml
-CUDA_VISIBLE_DEVICES=4,5 NPROC_PER_NODE=2 bash scripts/train.sh sft
+CUDA_VISIBLE_DEVICES=0 python -m eval.evaluate --config configs/eval_base_dev.yaml
+CUDA_VISIBLE_DEVICES=0,1 NPROC_PER_NODE=2 bash scripts/train.sh sft
 
 python - <<'PYTHON'
 import json
@@ -95,8 +104,7 @@ Reserved memory includes allocator cache and differs from live tensor allocation
 
 ## Engineering verification
 
-- Full dependency environment: **80 passed**, with CUDA hidden.
-- Minimal environment without Torch: **66 passed, 14 skipped**.
+- Full dependency environment: **83 passed**, with CUDA hidden, including DAPO tests.
 - Ruff F checks, configuration/API checks, and actual cached-tokenizer masking checks passed.
 - Explicit tiny random CPU models and controlled outputs verify earlier-best retention, ties, final-step checks, exact best-weight export, and restoration of model mode, cache, padding, and RNG state.
 - Three-process CPU/Gloo tests verify uneven shards, one-time aggregation, record order, and overlength examples staying in the scoring denominator.
@@ -110,16 +118,8 @@ Before full SFT, a real Qwen3.5 run completed one SFT update and four GRPO updat
 
 A separate selection smoke run used two SFT steps and four GRPO steps, checking four dev records. Both restored earlier tied-best checkpoints, and final weights matched those selected checkpoints exactly. Three-model smoke dev scores were each 1/2 correct among two scorable records, with four parseable outputs. These small scores do not establish effectiveness.
 
-Earlier Qwen2.5-1.5B smoke artifacts remain local historical engineering evidence. Their scores, memory, and timing are not Qwen3.5 results.
+The [DAPO smoke run](dapo.md#implementation-and-checks) completed two updates and exported the selected checkpoint.
 
 ## Local artifacts and publication scope
 
-These paths are ignored by Git and available only on the original machine unless separately distributed:
-
-- `results/qwen3.5-2b/formal-sft/`: original logs, runtime snapshots, comparison, and completion verification.
-- `results/qwen3.5-2b/base-dev/base/`: complete Base predictions and metrics.
-- `outputs/qwen3.5-2b/sft/`: adapter, retained checkpoints, state, resources, and per-step dev predictions.
-- `results/qwen3.5-2b/checkpoint-selection-smoke/`: selection-smoke evidence.
-- `results/publication-backup/`: original local documentation history.
-
-The committed report and JSON summary retain results, protocol, hashes, and reproduction settings without raw logs, predictions, or weights. Final test model evaluation and formal GRPO/control experiments have not been run.
+Training writes checkpoints, per-step dev predictions, and diagnostics under `outputs/`. Standalone evaluation writes metrics and predictions under `results/`. Git tracks the curated reports and JSON summaries under `docs/experiments/` and ignores the generated run artifacts.

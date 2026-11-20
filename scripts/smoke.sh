@@ -3,7 +3,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 # Set this explicitly on shared machines; default targets a single visible GPU.
 export CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-0}"
-python -m pytest -q
+python -m pytest -q tests
 python -m data.prepare_data --download
 python -m eval.evaluate --config configs/eval_smoke.yaml --set 'variants={base: {adapter: null}}'
 python -m train.sft --config configs/sft_smoke.yaml

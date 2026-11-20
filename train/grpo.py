@@ -87,8 +87,16 @@ def align_reference_adapter(model):
             "initial_reference_equals_sft": True}
 
 
-def main():
+def main(dapo=False):
     cfg, args = config_cli(__doc__)
+    if dapo:
+        sampling = cfg['dynamic_sampling']
+        if not isinstance(sampling['max_generation_batches'], int) or sampling['max_generation_batches'] < 1:
+            raise ValueError('DAPO max_generation_batches must be a positive integer')
+        if cfg['training']['loss_type'] != 'dapo' or cfg['training']['beta'] != 0:
+            raise ValueError('DAPO requires loss_type=dapo and beta=0')
+        if not 0 < cfg['overlong_buffer']['length'] < cfg['training']['max_completion_length']:
+            raise ValueError('DAPO overlength buffer must fit the completion budget')
     rows = training_rows(cfg["data"], cfg.get("limit"))
     dev_rows = validation_data(cfg, rows)
     if any(not validate_reference(r.get("reference")) for r in rows):
@@ -101,7 +109,7 @@ def main():
         raise ValueError("This profile uses native TRL generation on DDP workers; vLLM is not configured")
     if args.dry_run:
         if is_main_process():
-            print({"samples": len(rows), "dev_samples": len(dev_rows), "sft_adapter": cfg["sft_adapter"], "num_generations": cfg["training"]["num_generations"], **batch})
+            print({"algorithm": "dapo" if dapo else "grpo", "samples": len(rows), "dev_samples": len(dev_rows), "sft_adapter": cfg["sft_adapter"], "num_generations": cfg["training"]["num_generations"], **batch})
         return
     check_training_environment(grpo=True)
     if Path(cfg["sft_adapter"]).resolve() == Path(cfg["training"]["output_dir"]).resolve():
@@ -113,8 +121,8 @@ def main():
     from trl import GRPOConfig
     from train.validation import NumericalGRPOTrainer
     from datasets import Dataset
-    weights = [1.0, cfg["format_weight"]]
-    if not 0 <= weights[1] <= .1:
+    weights = [1.0] if dapo else [1.0, cfg["format_weight"]]
+    if not dapo and not 0 <= weights[1] <= .1:
         raise ValueError("format_weight must be between 0 and 0.1")
     training_args = GRPOConfig(seed=cfg["seed"], data_seed=cfg["seed"], report_to="none",
                                reward_weights=weights, remove_unused_columns=False,
@@ -142,16 +150,35 @@ def main():
         provenance["batch"] = batch
         write_json(out / "run.json", provenance)
         write_json(out / "length_filter.json", {"kept": len(kept), "dropped_ids": dropped})
-    reward = DiagnosticReward(out / "reward_groups.jsonl", cfg["tolerance"], cfg["format_weight"], training_args.num_generations)
+    extra = {}
+    trainer_class = NumericalGRPOTrainer
+    if dapo:
+        from rewards.dapo import DAPOReward
+        from train.dapo_trainer import NumericalDAPOTrainer
+        trainer_class = NumericalDAPOTrainer
+        reward = DAPOReward(out / 'reward_groups.jsonl', cfg['tolerance'], training_args.num_generations,
+                            training_args.max_completion_length, cfg['overlong_buffer']['length'],
+                            cfg['overlong_buffer']['penalty_factor'])
+        extra = {'dynamic_sampling': cfg['dynamic_sampling'], 'dapo_reward': reward}
+        reward_funcs = [reward]
+    else:
+        reward = DiagnosticReward(out / "reward_groups.jsonl", cfg["tolerance"], cfg["format_weight"], training_args.num_generations)
+        reward_funcs = [reward, format_reward]
     # No peft_config: train the loaded default adapter. With beta>0 TRL copies it to frozen ref.
-    trainer = NumericalGRPOTrainer(model=model, processing_class=tokenizer, args=training_args,
-                          reward_funcs=[reward, format_reward], train_dataset=Dataset.from_list(kept),
-                          eval_dataset=dev_rows, validation_config=cfg['validation'], model_spec=cfg['model'])
+    trainer = trainer_class(model=model, processing_class=tokenizer, args=training_args,
+                          reward_funcs=reward_funcs, train_dataset=Dataset.from_list(kept),
+                          eval_dataset=dev_rows, validation_config=cfg['validation'], model_spec=cfg['model'], **extra)
     if training_args.beta > 0:
         setup = align_reference_adapter(model)
         if is_main_process():
             write_json(out / "policy_setup.json", {"mode": "continue_default_adapter", "reference": "frozen_sft_copy",
                        **setup, "disable_dropout": training_args.disable_dropout})
+    elif dapo and is_main_process():
+        write_json(out / 'policy_setup.json', {'mode': 'continue_default_adapter', 'algorithm': 'dapo',
+                   'reference': None, 'beta': 0, 'disable_dropout': training_args.disable_dropout,
+                   'dynamic_sampling': cfg['dynamic_sampling'], 'overlong_buffer': cfg['overlong_buffer'],
+                   'epsilon_low': training_args.epsilon, 'epsilon_high': training_args.epsilon_high,
+                   'loss_type': training_args.loss_type})
     result = trainer.train()
     save_training(trainer, tokenizer, out, result, start)
     trainer.write_selection()

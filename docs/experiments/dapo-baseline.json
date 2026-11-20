@@ -1,0 +1,134 @@
+{
+  "schema_version": 1,
+  "experiment": "qwen35-2b-finqa-dapo-400",
+  "completed_at": "2026-11-20T10:07:45.531879+09:00",
+  "scope": "Seed-42 result on the FinQA ratio and percentage dev subset. Checkpoints selected on dev. DAPO and GRPO use different sampling and compute budgets.",
+  "configuration_file": "configs/dapo.yaml",
+  "seed": 42,
+  "batch": {
+    "world_size": 2,
+    "effective_batch_size": 64,
+    "generation_batch_size": 64,
+    "prompts_per_generation_batch": 8
+  },
+  "packages": {
+    "torch": "2.7.1+cu126",
+    "transformers": "5.22.1",
+    "trl": "1.17.1",
+    "peft": "0.21.0",
+    "accelerate": "1.15.0",
+    "datasets": "4.7.0",
+    "gradio": "5.49.1"
+  },
+  "files_sha256": {
+    "data/processed/qwen35_control_grpo.jsonl": "ff9e12b5f356dacd8782e8e8bb0e92930ae94d6bc06ebfbf9ec35e60472a6284",
+    "data/processed/dev.jsonl": "e4818dfd9824a11a5dadd5a1317465781580771d6e65f106016afc51e05f4869",
+    "data/processed/manifest.json": "16e1a53617fd7eef53ed819a6afd048861060d0ecf7bd8336163aca8dbfbbfd7"
+  },
+  "prompt_sha256": "31d7f2015463d3ba402bb0e222730a00d734f4074a0f4744953c535d4738cd19",
+  "source_sha256": {
+    "train/dapo.py": "9186754f4e1dd7ead4353d85558a037c47723121d05eb09f53f723b328c828e0",
+    "train/dapo_trainer.py": "1bfc3895edfc7c5e4432e5e34e7ee33c46569eda45034f2aaf4f428b5e248f0b",
+    "train/grpo.py": "e06ca9faebd30089c7049ba3fb7d3e2257510249320563f6555637bd5fb94ca5",
+    "rewards/dapo.py": "57b985fdde39661dd7b3f19660d36b8d8ebc01e27265f6026ea283989e0e4be7"
+  },
+  "initial_sft_adapter_sha256": {
+    "outputs/qwen3.5-2b/sft/adapter_model.safetensors": "89ef188fb8107c51bbf54c976bc591350d9825f85b8fa40fdfcaf5913c424196",
+    "outputs/qwen3.5-2b/sft/adapter_config.json": "f1462624e3edd256103bd1617bbef161c5fbaa2cfd80e19da8af2b8c94524a9d"
+  },
+  "results": {
+    "optimizer_steps": 400,
+    "dev_records": 883,
+    "scorable": 481,
+    "selected": {
+      "step": 200,
+      "correct": 246,
+      "numerical_accuracy": 0.5114345114345115
+    },
+    "final": {
+      "step": 400,
+      "correct": 244,
+      "numerical_accuracy": 0.5072765072765073
+    },
+    "sft_dev_accuracy": 0.4802494802494803,
+    "grpo_dev_accuracy": 0.5093555093555093,
+    "delta_vs_sft_percentage_points": 3.118503118503119,
+    "delta_vs_grpo_percentage_points": 0.20790020790021346
+  },
+  "trajectory": [
+    {
+      "step": 50,
+      "correct": 235,
+      "numerical_accuracy": 0.4885654885654886
+    },
+    {
+      "step": 100,
+      "correct": 239,
+      "numerical_accuracy": 0.4968814968814969
+    },
+    {
+      "step": 150,
+      "correct": 243,
+      "numerical_accuracy": 0.5051975051975052
+    },
+    {
+      "step": 200,
+      "correct": 246,
+      "numerical_accuracy": 0.5114345114345115
+    },
+    {
+      "step": 250,
+      "correct": 241,
+      "numerical_accuracy": 0.501039501039501
+    },
+    {
+      "step": 300,
+      "correct": 244,
+      "numerical_accuracy": 0.5072765072765073
+    },
+    {
+      "step": 350,
+      "correct": 246,
+      "numerical_accuracy": 0.5114345114345115
+    },
+    {
+      "step": 400,
+      "correct": 244,
+      "numerical_accuracy": 0.5072765072765073
+    }
+  ],
+  "paired_comparisons_at_selected_step": {
+    "vs_sft": {
+      "both_correct": 226,
+      "both_wrong": 230,
+      "fixed": 20,
+      "regressed": 5,
+      "net_gain": 15
+    },
+    "vs_grpo": {
+      "both_correct": 235,
+      "both_wrong": 225,
+      "fixed": 11,
+      "regressed": 10,
+      "net_gain": 1
+    }
+  },
+  "sampling": {
+    "fresh_batches": 200,
+    "candidate_generation_batches": 628,
+    "candidate_groups": 5024,
+    "qualified_groups": 1841,
+    "selected_groups": 1600,
+    "zero_std_selected_groups": 0,
+    "truncated_candidate_responses": 1
+  },
+  "resources": {
+    "gpu_model": "NVIDIA RTX A6000",
+    "gpu_count": 2,
+    "train_runtime_seconds": 33665.7842,
+    "peak_allocated_gib_per_rank": [
+      12.887528419494629,
+      12.902605056762695
+    ]
+  }
+}

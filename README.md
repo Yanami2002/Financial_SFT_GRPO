@@ -1,54 +1,27 @@
 # FinQA SFT + GRPO
 
-LoRA fine-tuning and verifiable-reward optimization for financial numerical QA with **Qwen3.5-2B**.
+Given a financial report excerpt and a question, **Qwen3.5-2B** returns a numerical answer and its unit as JSON. This project compares LoRA SFT, GRPO, and a short-answer DAPO adaptation on the same FinQA evaluation subset.
 
-[Guide](docs/guide.md) · [Experiments](docs/validation.md) · [Data](data/README.md)
-
-## Training Pipeline
-
-FinQA filtering → LoRA SFT → GRPO → evaluation.
-
-SFT learns annotated JSON answers. GRPO continues the SFT adapter using numerical correctness and output-format rewards.
+[Quickstart](#quickstart) · [User guide](docs/guide.md) · [Experiment reports](docs/validation.md) · [Data and scoring](data/README.md)
 
 ## Results
 
-| Model | Dev accuracy |
-|---|---:|
-| Base | 18.71% |
-| LoRA SFT | **48.02%** |
+| Model | Selected step | Correct / 481 | Dev accuracy | Change vs. SFT |
+|---|---:|---:|---:|---:|
+| Qwen3.5-2B Base | — | 90 | 18.71% | — |
+| [LoRA SFT](docs/validation.md#completed-base-and-two-gpu-sft-baseline) | 500 | 231 | 48.02% | — |
+| [SFT + GRPO](docs/grpo-baseline.md) | 400 | 245 | 50.94% | +2.91 pp |
+| [SFT + DAPO](docs/dapo.md) | 200 | 246 | 51.14% | +3.12 pp |
 
-Single-seed results on 481 scorable ratio/percentage questions from 883 FinQA dev records. SFT is dev-selected; these are not full-FinQA or held-out test scores.
+All scores use the same 481 scorable ratio and percentage questions from 883 FinQA dev records. The fine-tuned checkpoints were selected on dev using seed 42. DAPO answered one more question correctly than GRPO at the selected checkpoints. The two recipes differ in sampling and compute. Multi-seed, continued-SFT, and held-out test comparisons remain open.
 
-SFT baseline complete. Full GRPO and continued-SFT experiments are pending.
+## Training
 
-## SFT Setup
-
-| Setting | Value |
-|---|---|
-| Model | Qwen3.5-2B, BF16, thinking disabled |
-| Data | FinQA ratio/percentage subset; 3,363 training examples after length filtering |
-| Supervision | Assistant answers only; no synthetic reasoning traces |
-| LoRA | Rank 16, alpha 32, dropout 0.05, `all-linear` |
-| Training | 3 epochs, learning rate 1e-4, cosine decay, maximum sequence length 2048 |
-
-See the [full configuration](configs/sft.yaml) for details.
-
-## GRPO Setup
-
-Current recipe; full GRPO results are pending.
-
-| Setting | Value |
-|---|---|
-| Initialization | Trained SFT adapter |
-| Sampling | 8 responses per question, up to 128 new tokens each |
-| Reward | `1.0 × numerical correctness + 0.05 × valid output format` |
-| Training | 1 epoch, learning rate 5e-6, KL coefficient 0.04 |
-
-Correctness checks units, scales, and numerical tolerance. Format requires parseable JSON with a valid answer and supported unit. See the [configuration](configs/grpo.yaml).
+SFT learns to produce JSON from FinQA's annotated answers. GRPO and DAPO each start from the selected SFT adapter. GRPO rewards numerical correctness plus a 0.05 format bonus. DAPO filters groups that lack a mix of correct and incorrect answers and applies a soft penalty to long answers. Fine-tuning uses 3,363 training examples after length filtering. See the [configurations](configs/) and [scoring rules](data/README.md).
 
 ## Quickstart
 
-Python 3.11 and CUDA GPUs.
+The reported training runs used Python 3.11 and two CUDA GPUs. Replace the device IDs in the examples with your allocated GPUs.
 
 ```bash
 git clone https://github.com/Yanami2002/Financial_SFT_GRPO.git
@@ -58,20 +31,23 @@ source .venv/bin/activate
 uv pip install torch==2.7.1 --index-url https://download.pytorch.org/whl/cu126
 uv pip install -r requirements.txt
 python -m data.prepare_data --download
+python -m scripts.control_cohort
 ```
 
-Train SFT before GRPO; adapters are not bundled. Replace the example GPU IDs with your allocated devices.
+Train SFT first to create the starting adapter, then run either RL recipe or both. Each recipe writes its own adapter.
 
 ```bash
 export CUDA_VISIBLE_DEVICES=0,1
 NPROC_PER_NODE=2 bash scripts/train.sh sft
-NPROC_PER_NODE=2 bash scripts/train.sh grpo
+NPROC_PER_NODE=2 bash scripts/train.sh grpo --config configs/grpo_equal_data.yaml \
+  --set training.output_dir=outputs/qwen3.5-2b/grpo
+NPROC_PER_NODE=2 bash scripts/train.sh dapo
 
 # Launch the demo with available models.
 CUDA_VISIBLE_DEVICES=0 python -m demo.app --config configs/eval.yaml
 ```
 
-Open http://127.0.0.1:7860. See the [guide](docs/guide.md#reproduce-the-base-and-sft-baseline) for full reproduction and evaluation instructions.
+Open http://127.0.0.1:7860 for the local demo. See the [user guide](docs/guide.md) for the repository layout, evaluation, and detailed reproduction instructions. Git tracks the code, configurations, and curated results. Downloaded data, adapters, and raw run outputs are generated locally.
 
 ## Example
 
